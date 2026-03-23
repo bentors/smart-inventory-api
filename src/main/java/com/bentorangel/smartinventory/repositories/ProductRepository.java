@@ -8,9 +8,9 @@ import java.util.UUID;
 
 public interface ProductRepository extends JpaRepository<Product, UUID> {
 
-    // Busca exata pelo SKU (útil para bips de estoque)
+    // Busca exata pelo SKU
     Optional<Product> findBySku(String sku);
 
-    // Busca por parte do nome (case-insensitive) - ex: "Camiseta" traz tudo de camiseta
+    // Busca por parte do nome (case-insensitive)
     List<Product> findByNameContainingIgnoreCase(String name);
 }

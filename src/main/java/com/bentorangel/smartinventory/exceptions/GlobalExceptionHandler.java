@@ -10,15 +10,15 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import java.util.HashMap;
 import java.util.Map;
 
-@RestControllerAdvice // Diz pro Spring: "Fica de olho em todos os Controllers!"
+@RestControllerAdvice
 public class GlobalExceptionHandler {
 
-    // Quando o @Valid do Controller explodir um erro, esse método captura!
+    // Quando o @Valid do Controller explodir um erro, esse metodo captura
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<Map<String, String>> handleValidationExceptions(MethodArgumentNotValidException ex) {
         Map<String, String> errors = new HashMap<>();
 
-        // Pega todos os erros que aconteceram e monta um JSON amigável
+        // Pega todos os erros que aconteceram e monta um JSON
         ex.getBindingResult().getAllErrors().forEach((error) -> {
             String fieldName = ((FieldError) error).getField();
             String errorMessage = error.getDefaultMessage();

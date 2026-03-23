@@ -9,5 +9,5 @@ public record ProductResponseDTO(
         String name,
         BigDecimal price,
         Integer currentStock,
-        boolean isStockCritical // Mandamos a regra de negócio mastigada pro front!
+        boolean isStockCritical
 ) {}

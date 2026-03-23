@@ -1,28 +1,33 @@
 package com.bentorangel.smartinventory.services;
 
 import com.bentorangel.smartinventory.domain.Product;
+import com.bentorangel.smartinventory.domain.StockMovement;
 import com.bentorangel.smartinventory.dtos.ProductRequestDTO;
 import com.bentorangel.smartinventory.dtos.ProductResponseDTO;
+import com.bentorangel.smartinventory.dtos.StockMovementResponseDTO;
 import com.bentorangel.smartinventory.repositories.ProductRepository;
+import com.bentorangel.smartinventory.repositories.StockMovementRepository;
 import org.springframework.stereotype.Service;
-import java.util.UUID;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Service
 public class ProductService {
 
     private final ProductRepository repository;
+    private final StockMovementRepository movementRepository;
 
-    public ProductService(ProductRepository repository) {
+    // Construtor com as duas dependências
+    public ProductService(ProductRepository repository, StockMovementRepository movementRepository) {
         this.repository = repository;
+        this.movementRepository = movementRepository;
     }
 
-    // Método para criar produto
+    @Transactional
     public ProductResponseDTO createProduct(ProductRequestDTO requestDTO) {
-
-        // 1. Converte o DTO para a Entidade do Banco
         Product product = new Product();
         product.setSku(requestDTO.sku());
         product.setName(requestDTO.name());
@@ -31,80 +36,99 @@ public class ProductService {
         product.setCurrentStock(requestDTO.currentStock());
         product.setMinStockAlert(requestDTO.minStockAlert());
 
-        // 2. Salva no banco de dados
         Product savedProduct = repository.save(product);
 
-        // 3. Converte a Entidade salva de volta para um DTO de resposta
-        return new ProductResponseDTO(
-                savedProduct.getId(),
-                savedProduct.getSku(),
-                savedProduct.getName(),
-                savedProduct.getPrice(),
-                savedProduct.getCurrentStock(),
-                savedProduct.isStockCritical() // Usa o metodo da nossa entidade!
-        );
+        // Opcional: Registrar a movimentação inicial de estoque
+        saveMovement(savedProduct, savedProduct.getCurrentStock(), "Criação inicial do produto");
+
+        return mapToResponseDTO(savedProduct);
     }
 
-    // Metodo para listar todos
     public List<ProductResponseDTO> getAllProducts() {
         return repository.findAll()
                 .stream()
-                .map(product -> new ProductResponseDTO(
-                        product.getId(),
-                        product.getSku(),
-                        product.getName(),
-                        product.getPrice(),
-                        product.getCurrentStock(),
-                        product.isStockCritical()
-                ))
+                .map(this::mapToResponseDTO) // Uso do método privado de conversão
                 .collect(Collectors.toList());
     }
 
-    // Buscar um produto específico pelo ID
     public ProductResponseDTO getProductById(UUID id) {
-        Product product = repository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Produto não encontrado para o ID: " + id));
-
-        return new ProductResponseDTO(
-                product.getId(), product.getSku(), product.getName(),
-                product.getPrice(), product.getCurrentStock(), product.isStockCritical()
-        );
+        Product product = findProductOrThrow(id);
+        return mapToResponseDTO(product);
     }
 
-    // Atualizar apenas o stock do produto (Entrada ou Saída)
-    public ProductResponseDTO updateStock(UUID id, Integer quantityToAddOrRemove) {
-        Product product = repository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Produto não encontrado para o ID: " + id));
+    @Transactional
+    public ProductResponseDTO updateStock(UUID id, Integer quantity, String reason) {
+        Product product = findProductOrThrow(id);
 
-        int newStock = product.getCurrentStock() + quantityToAddOrRemove;
-
+        int newStock = product.getCurrentStock() + quantity;
         if (newStock < 0) {
-            throw new IllegalArgumentException("Operação inválida: O stock não pode ficar negativo.");
+            throw new IllegalArgumentException("Operação inválida: O estoque não pode ficar negativo.");
         }
 
         product.setCurrentStock(newStock);
         Product updatedProduct = repository.save(product);
 
-        return new ProductResponseDTO(
-                updatedProduct.getId(), updatedProduct.getSku(), updatedProduct.getName(),
-                updatedProduct.getPrice(), updatedProduct.getCurrentStock(), updatedProduct.isStockCritical()
-        );
+        // REGISTRO DE AUDITORIA
+        saveMovement(updatedProduct, quantity, reason);
+
+        return mapToResponseDTO(updatedProduct);
     }
 
-    // Eliminar um produto
+    @Transactional
     public void deleteProduct(UUID id) {
-        Product product = repository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Produto não encontrado para o ID: " + id));
-
+        Product product = findProductOrThrow(id);
         repository.delete(product);
     }
 
     public List<ProductResponseDTO> searchProductsByName(String name) {
         return repository.findByNameContainingIgnoreCase(name)
                 .stream()
-                .map(product -> new ProductResponseDTO(
-                        product.getId(), product.getSku(), product.getName(),
-                        product.getPrice(), product.getCurrentStock(), product.isStockCritical()
+                .map(this::mapToResponseDTO)
+                .collect(Collectors.toList());
+    }
+
+    // --- MÉTODOS AUXILIARES (PRIVADOS) ---
+
+    // Centraliza a lógica de "Ou acha ou explode erro"
+    private Product findProductOrThrow(UUID id) {
+        return repository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Produto não encontrado para o ID: " + id));
+    }
+
+    // Centraliza a conversão de Entidade para DTO (DRY - Don't Repeat Yourself)
+    private ProductResponseDTO mapToResponseDTO(Product product) {
+        return new ProductResponseDTO(
+                product.getId(),
+                product.getSku(),
+                product.getName(),
+                product.getPrice(),
+                product.getCurrentStock(),
+                product.isStockCritical()
+        );
+    }
+
+    // Centraliza a criação do log de movimentação
+    private void saveMovement(Product product, Integer quantity, String reason) {
+        StockMovement movement = new StockMovement();
+        movement.setProduct(product);
+        movement.setQuantity(quantity);
+        movement.setType(quantity > 0 ? "ENTRY" : "EXIT");
+        movement.setReason(reason != null ? reason : "Ajuste manual");
+        movementRepository.save(movement);
+    }
+
+    public List<StockMovementResponseDTO> getProductHistory(UUID productId) {
+        // Primeiro verificamos se o produto existe
+        findProductOrThrow(productId);
+
+        return movementRepository.findByProductIdOrderByCreatedAtDesc(productId)
+                .stream()
+                .map(movement -> new StockMovementResponseDTO(
+                        movement.getId(),
+                        movement.getQuantity(),
+                        movement.getType(),
+                        movement.getReason(),
+                        movement.getCreatedAt()
                 ))
                 .collect(Collectors.toList());
     }
