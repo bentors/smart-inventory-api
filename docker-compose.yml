@@ -1,0 +1,15 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:16
+    container_name: smart_inventory_postgres_novo
+    restart: always
+    environment:
+      - POSTGRES_USER=sibento_admin
+      - POSTGRES_PASSWORD=dbportfoliobentorangel0622
+      - POSTGRES_DB=smart_inventory_db
+      # O truque de mestre para forçar um banco virgem:
+      - PGDATA=/var/lib/postgresql/data/banco_zerado
+    ports:
+      - "5433:5432"
