@@ -9,6 +9,8 @@ import com.bentorangel.smartinventory.repositories.ProductRepository;
 import com.bentorangel.smartinventory.repositories.StockMovementRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 
 import java.util.List;
 import java.util.UUID;
@@ -44,11 +46,10 @@ public class ProductService {
         return mapToResponseDTO(savedProduct);
     }
 
-    public List<ProductResponseDTO> getAllProducts() {
-        return repository.findAll()
-                .stream()
-                .map(this::mapToResponseDTO) // Uso do método privado de conversão
-                .collect(Collectors.toList());
+    // Listar todos com Paginação
+    public Page<ProductResponseDTO> getAllProducts(Pageable pageable) {
+        return repository.findAll(pageable)
+                .map(this::mapToResponseDTO); // O Page já tem o map() nativo!
     }
 
     public ProductResponseDTO getProductById(UUID id) {
@@ -80,11 +81,9 @@ public class ProductService {
         repository.delete(product);
     }
 
-    public List<ProductResponseDTO> searchProductsByName(String name) {
-        return repository.findByNameContainingIgnoreCase(name)
-                .stream()
-                .map(this::mapToResponseDTO)
-                .collect(Collectors.toList());
+    public Page<ProductResponseDTO> searchProductsByName(String name, Pageable pageable) {
+        return repository.findByNameContainingIgnoreCase(name, pageable)
+                .map(this::mapToResponseDTO);
     }
 
     // --- MÉTODOS AUXILIARES (PRIVADOS) ---

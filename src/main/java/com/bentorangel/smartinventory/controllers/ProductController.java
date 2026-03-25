@@ -4,11 +4,15 @@ import com.bentorangel.smartinventory.dtos.ProductRequestDTO;
 import com.bentorangel.smartinventory.dtos.ProductResponseDTO;
 import com.bentorangel.smartinventory.dtos.StockMovementResponseDTO;
 import com.bentorangel.smartinventory.services.ProductService;
+import org.springdoc.core.annotations.ParameterObject;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
 import jakarta.validation.Valid;
 import java.util.UUID;
-
 import java.util.List;
 
 @RestController
@@ -28,8 +32,16 @@ public class ProductController {
     }
 
     @GetMapping
-    public ResponseEntity<List<ProductResponseDTO>> listAll() {
-        return ResponseEntity.ok(service.getAllProducts());
+    public ResponseEntity<Page<ProductResponseDTO>> listAll(
+            @ParameterObject @PageableDefault(size = 10, sort = {"name"}) Pageable pageable) {
+        return ResponseEntity.ok(service.getAllProducts(pageable));
+    }
+
+    @GetMapping("/search")
+    public ResponseEntity<Page<ProductResponseDTO>> searchByName(
+            @RequestParam String name,
+            @ParameterObject @PageableDefault(size = 10, sort = {"name"}) Pageable pageable) {
+        return ResponseEntity.ok(service.searchProductsByName(name, pageable));
     }
 
     @GetMapping("/{id}")
@@ -50,11 +62,6 @@ public class ProductController {
             @RequestParam(required = false) String reason) {
 
         return ResponseEntity.ok(service.updateStock(id, quantity, reason));
-    }
-
-    @GetMapping("/search")
-    public ResponseEntity<List<ProductResponseDTO>> searchByName(@RequestParam String name) {
-        return ResponseEntity.ok(service.searchProductsByName(name));
     }
 
     @GetMapping("/{id}/history")

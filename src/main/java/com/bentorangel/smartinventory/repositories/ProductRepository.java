@@ -1,9 +1,11 @@
 package com.bentorangel.smartinventory.repositories;
 
 import com.bentorangel.smartinventory.domain.Product;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+
 import java.util.Optional;
-import java.util.List;
 import java.util.UUID;
 
 public interface ProductRepository extends JpaRepository<Product, UUID> {
@@ -12,5 +14,5 @@ public interface ProductRepository extends JpaRepository<Product, UUID> {
     Optional<Product> findBySku(String sku);
 
     // Busca por parte do nome (case-insensitive)
-    List<Product> findByNameContainingIgnoreCase(String name);
+    Page<Product> findByNameContainingIgnoreCase(String name, Pageable pageable);
 }
