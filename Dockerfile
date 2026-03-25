@@ -1,13 +1,14 @@
-FROM eclipse-temurin:21-jre
-
-# Cria uma pasta de trabalho dentro do container
+# Estágio 1: Build (O Docker vai baixar o Maven e compilar seu código)
+FROM maven:3.9-eclipse-temurin-21 AS build
 WORKDIR /app
+COPY . .
+RUN mvn clean package -DskipTests
 
-# Copia o arquivo .jar gerado pelo Maven para dentro do container
-COPY target/*.jar app.jar
+# Estágio 2: Runtime (O Docker vai criar uma imagem leve só com o necessário)
+FROM eclipse-temurin:21-jre
+WORKDIR /app
+# Aqui pegamos o arquivo gerado no estágio anterior
+COPY --from=build /app/target/*.jar app.jar
 
-# Expõe a porta 8080 (a mesma do Tomcat)
 EXPOSE 8080
-
-# Comando para rodar a aplicação quando o container iniciar
 ENTRYPOINT ["java", "-jar", "app.jar"]
