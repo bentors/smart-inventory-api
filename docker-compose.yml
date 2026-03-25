@@ -6,10 +6,22 @@ services:
     container_name: smart_inventory_postgres_novo
     restart: always
     environment:
-      - POSTGRES_USER=sibento_admin
-      - POSTGRES_PASSWORD=dbportfoliobentorangel0622
-      - POSTGRES_DB=smart_inventory_db
-      # O truque de mestre para forçar um banco virgem:
+      - POSTGRES_USER=${DB_USER}
+      - POSTGRES_PASSWORD=${DB_PASS}
+      - POSTGRES_DB=${DB_NAME}
       - PGDATA=/var/lib/postgresql/data/banco_zerado
     ports:
       - "5433:5432"
+
+  api:
+    build: .
+    container_name: smart_inventory_api
+    restart: always
+    depends_on:
+      - db
+    ports:
+      - "8080:8080"
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://db:5432/${DB_NAME}
+      - SPRING_DATASOURCE_USERNAME=${DB_USER}
+      - SPRING_DATASOURCE_PASSWORD=${DB_PASS}
