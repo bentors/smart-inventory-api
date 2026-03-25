@@ -19,6 +19,7 @@ import java.util.stream.Collectors;
 @Service
 public class ProductService {
 
+
     private final ProductRepository repository;
     private final StockMovementRepository movementRepository;
 
